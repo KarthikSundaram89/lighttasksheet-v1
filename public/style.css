@@ -1,0 +1,198 @@
+
+/* LightTaskSheet - style.css (Production: S1 macOS-like modern UI)
+   Features covered:
+   - Header, controls, buttons
+   - Sheet table, sticky header, responsive layout
+   - Row numbering column, hierarchical numbering visuals
+   - Selection highlights, multi-select visuals
+   - Sub-row styling and indentation
+   - Context menu (macOS style)
+   - Toast notifications, modals, help panel
+   - Drag & drop visuals and placeholder drop indicator
+   - Column color chips, type selectors, and small UI elements
+*/
+
+/* Reset & base */
+:root{
+  --bg: #f6fbff;
+  --card: #ffffff;
+  --muted: #6b7280;
+  --accent: #2563eb;
+  --accent-600: #1e40af;
+  --border: #e6eef7;
+  --radius: 12px;
+  --shadow-soft: 0 8px 24px rgba(16,24,40,0.06);
+  --shadow-popup: 0 12px 40px rgba(2,6,23,0.12);
+  --success: #10b981;
+  --danger: #ef4444;
+  --chip-size: 12px;
+  --selection-bg: rgba(37,99,235,0.08);
+  --selection-border: rgba(37,99,235,0.18);
+  --row-hover: rgba(2,6,23,0.03);
+  --context-bg: rgba(255,255,255,0.98);
+  --glass: rgba(255,255,255,0.8);
+}
+
+*{ box-sizing: border-box; -webkit-font-smoothing:antialiased; -moz-osx-font-smoothing:grayscale; }
+html,body{ height:100%; }
+body{
+  margin: 14px;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial;
+  background: linear-gradient(180deg, #fbfdff, var(--bg));
+  color: #0f172a;
+  -webkit-user-select: none;
+}
+
+/* App header */
+.app-header{
+  display:flex; gap:12px; align-items:center;
+  padding:12px 14px; border-radius:var(--radius);
+  background:var(--card); border:1px solid var(--border); box-shadow:var(--shadow-soft);
+}
+.app-title{ margin:0; font-weight:700; font-size:1.05rem; letter-spacing: -0.2px; }
+.spacer{ flex:1; }
+.username-tag{ font-size:14px; color:var(--muted); padding:6px 10px; background: #f0f7ff; border-radius:8px; display:none; }
+
+/* Controls bar */
+.controls{
+  margin-top:12px; display:flex; gap:8px; flex-wrap:wrap; align-items:center;
+}
+.btn{
+  padding:8px 12px; border-radius:10px; border:0; cursor:pointer;
+  background: white; color:var(--muted); font-weight:600; box-shadow: none;
+  border: 1px solid #eaf3ff;
+}
+.btn:hover{ transform: translateY(-1px); }
+.btn.primary{ background: linear-gradient(180deg,var(--accent),var(--accent-600)); color: #fff; box-shadow: 0 6px 18px rgba(37,99,235,0.14); }
+.btn.ghost{ background: #fff; color:var(--muted); }
+.controls .right-note{ margin-left:auto; color:var(--muted); font-size:13px; }
+
+/* Sheet container */
+.sheet-card{
+  margin-top:12px; border-radius:12px; background:var(--card);
+  border:1px solid var(--border); box-shadow:var(--shadow-soft); padding:0; overflow:auto;
+  max-height:72vh; position:relative;
+}
+
+/* Table base */
+table.sheet{
+  width:100%; border-collapse:collapse; table-layout:fixed; min-width:720px;
+}
+table.sheet thead th{
+  position:sticky; top:0; z-index:5; padding:10px 12px; text-align:left;
+  background: linear-gradient(180deg,#f8fbff,#f5f9ff); color:var(--muted); font-weight:700;
+  border-bottom:1px solid #eef7fc; font-size:13px;
+}
+table.sheet td{
+  padding:10px 12px; border-bottom:1px solid #f4f9fd; vertical-align:top; background: #fff;
+  word-break:break-word; font-size:14px;
+}
+
+/* Row numbering column */
+.col-number{
+  width:54px; min-width:54px; max-width:80px; text-align:right; padding-right:10px;
+  color:var(--muted); background: linear-gradient(180deg,#ffffff,#fcfeff);
+  border-right:1px solid #f1f7fb; position:sticky; left:0; z-index:6;
+}
+.col-number .num{
+  display:inline-block; width:100%; padding:8px 6px; border-radius:8px;
+}
+
+/* Row visuals & hover */
+table.sheet tbody tr:hover td{ background: var(--row-hover); }
+table.sheet tbody tr.selected td{ background: var(--selection-bg); border:1px solid var(--selection-border); }
+table.sheet tbody tr.sub-row td{ background: #fbfcff; }
+table.sheet tbody td .sub-prefix{ font-weight:700; margin-right:6px; color:#555; }
+
+/* Content editable cells */
+[contenteditable]{ outline:none; min-height:26px; padding:6px; border-radius:6px; }
+input[type="datetime-local"], input[type="number"], input[type="text"]{
+  border:1px solid #eef6ff; padding:6px; border-radius:6px; width:100%;
+  background: transparent; font-size:13px;
+}
+
+/* Column header items */
+.col-header{ display:flex; gap:8px; align-items:center; }
+.col-title{ flex:1; cursor:grab; padding:6px 8px; border-radius:8px; font-weight:700; }
+.color-chip{ width:var(--chip-size); height:var(--chip-size); border-radius:6px; border:1px solid rgba(0,0,0,0.06); cursor:pointer; }
+.type-select{ font-size:12px; padding:6px; border-radius:6px; border:1px solid #eef6ff; background:white; }
+
+/* Context menu (macOS style) */
+.context-menu{
+  position:fixed; display:none; z-index:9999;
+  min-width:180px; border-radius:10px; background:var(--context-bg);
+  box-shadow: var(--shadow-popup); padding:6px 6px; border: 1px solid rgba(2,6,23,0.06);
+  backdrop-filter: blur(6px);
+}
+.context-menu .item{
+  padding:8px 10px; border-radius:8px; cursor:pointer; color:#0f172a; font-weight:600;
+  display:flex; justify-content:space-between; align-items:center; gap:8px;
+}
+.context-menu .item:hover{ background: linear-gradient(90deg, rgba(37,99,235,0.06), rgba(37,99,235,0.03)); color:var(--accent-600); }
+.context-menu .sep{ height:1px; background:#eef6ff; margin:6px 0; border-radius:2px; }
+
+/* Selection checkbox / indicator */
+.row-select-ctrl{
+  display:inline-flex; align-items:center; justify-content:center; width:20px; height:20px;
+  border-radius:4px; border:1px solid #e6eef7; background:white; cursor:pointer;
+}
+.row-selected-badge{ display:inline-block; padding:4px 8px; border-radius:999px; background:#eef7ff; color:#0452a5; font-weight:700; }
+
+/* Toast */
+.toast{
+  position:fixed; top:20px; right:20px; z-index:10000;
+  background:linear-gradient(180deg,#042A65,#06327f); color:white; padding:12px 16px;
+  border-radius:10px; box-shadow: 0 10px 30px rgba(2,6,23,0.2); display:none; align-items:center; gap:10px;
+}
+.toast .undo{ background: rgba(255,255,255,0.12); padding:6px 8px; border-radius:8px; cursor:pointer; font-weight:700; }
+
+/* Modal */
+.modal-backdrop{ position:fixed; inset:0; display:none; background: rgba(2,6,23,0.35); z-index:9998; align-items:center; justify-content:center; }
+.modal{ width:94%; max-width:720px; background:white; padding:16px; border-radius:12px; box-shadow:var(--shadow-popup); }
+
+/* Drag & drop visuals */
+.drag-handle{ cursor:grab; padding:6px; border-radius:6px; }
+.drag-placeholder{
+  height:48px; border-radius:8px; background: linear-gradient(90deg, rgba(2,6,23,0.03), rgba(2,6,23,0.01));
+  border:1px dashed rgba(37,99,235,0.15);
+}
+
+/* Column header sticky left behavior for numbering column */
+.sticky-left{
+  position:sticky; left:0; z-index:7; background:linear-gradient(180deg,#fff,#fcfeff);
+  border-right:1px solid #f1f7fb;
+}
+
+/* small helpers */
+.small{ font-size:13px; color:var(--muted); }
+.right{ text-align:right; }
+
+/* responsive */
+@media (max-width:920px){
+  table.sheet{ min-width:620px; }
+  .col-number{ display:none; }
+}
+
+/* Accessibility focus outlines */
+[role="button"]:focus, button:focus, .col-title:focus { outline: 3px solid rgba(37,99,235,0.14); outline-offset:2px; }
+
+/* Hierarchical numbering visuals */
+.h-num{ font-weight:700; color:var(--muted); display:inline-block; padding:6px 8px; border-radius:8px; }
+.h-num.sub{ color:#475569; background: rgba(16,24,40,0.02); }
+
+/* Table footer / small notes */
+.sheet-footer{ margin-top:8px; font-size:13px; color:var(--muted); }
+
+/* Column type badges */
+.col-type-badge{ font-size:12px; padding:4px 6px; border-radius:6px; background:#f3f8ff; color:#1e3a8a; border:1px solid rgba(30,58,138,0.06); }
+
+/* Drag ghost */
+.drag-ghost{
+  position:fixed; pointer-events:none; z-index:12000; transform:translate(-50%,-50%); border-radius:10px;
+  background:white; padding:8px 12px; box-shadow: 0 10px 30px rgba(2,6,23,0.12); opacity:0.96;
+}
+
+/* Context no-select for inputs inside context menu */
+.context-menu input{ width:100%; border-radius:6px; padding:6px; border:1px solid #eef6ff; }
+
+/* End of file */

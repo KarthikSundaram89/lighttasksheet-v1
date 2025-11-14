@@ -1,0 +1,16 @@
+
+{
+  "name": "lighttasksheet",
+  "version": "1.0.0",
+  "description": "Internal lightweight task tracking sheet",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "backup": "bash scripts/backup_data.sh"
+  },
+  "dependencies": {
+    "bcryptjs": "^2.4.3",
+    "express": "^4.18.2",
+    "jsonwebtoken": "^9.0.0"
+  }
+}

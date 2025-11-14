@@ -1,0 +1,74 @@
+
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>LightTaskSheet — Final Build</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<header class="app-header">
+  <h1 class="app-title">LightTaskSheet</h1>
+  <div class="spacer"></div>
+
+  <button id="helpBtn" class="help-btn" title="Help / Shortcuts">?</button>
+  <span id="userTag" class="username-tag" aria-hidden="true"></span>
+
+  <div style="display:flex;gap:8px;align-items:center">
+    <input id="username" placeholder="username" style="padding:8px;border-radius:6px;border:1px solid #e9f1fb" />
+    <input id="password" placeholder="password" type="password" style="padding:8px;border-radius:6px;border:1px solid #e9f1fb" />
+    <button id="loginBtn" class="btn primary">Login</button>
+    <button id="registerBtn" class="btn ghost">Register</button>
+    <button id="logoutBtn" class="btn ghost" style="display:none">Logout</button>
+  </div>
+</header>
+
+<div class="controls">
+  <button id="addRowBtn" class="btn ghost">+ Add row</button>
+  <button id="addColBtn" class="btn ghost">+ Add column</button>
+  <button id="delColBtn" class="btn ghost">Delete last column</button>
+  <button id="saveBtn" class="btn primary">Save</button>
+  <button id="collapseAllBtn" class="btn ghost">Collapse All</button>
+  <button id="expandAllBtn" class="btn ghost">Expand All</button>
+
+  <button id="exportBtn" class="btn ghost">Export JSON</button>
+  <button id="exportXlsBtn" class="btn ghost">Export Excel (.xlsx)</button>
+  <input id="importFile" type="file" accept="application/json" style="margin-left:8px" />
+  <div class="right-note">Shortcuts: ⌘/Ctrl+S Save • ⌘+E Export • ⌘+⇧+E Excel • ⌘+Z Undo</div>
+</div>
+
+<main class="sheet-card" role="main" aria-label="Task sheet">
+  <!-- script.js will inject table here -->
+</main>
+
+<!-- help modal -->
+<div id="modal" class="modal-backdrop" role="dialog" aria-hidden="true">
+  <div class="modal" role="document" aria-labelledby="helpTitle">
+    <h3 id="helpTitle">Help & Keyboard Shortcuts</h3>
+    <p>Useful keyboard shortcuts and quick tips.</p>
+    <ul>
+      <li><strong>Ctrl / Cmd + S</strong> — Save</li>
+      <li><strong>Ctrl / Cmd + E</strong> — Export JSON</li>
+      <li><strong>Ctrl / Cmd + Shift + E</strong> — Export Excel (.xlsx)</li>
+      <li><strong>Ctrl / Cmd + Z</strong> — Undo</li>
+      <li><strong>Ctrl / Cmd + N</strong> — New row</li>
+      <li><strong>Ctrl / Cmd + Shift + N</strong> — New column</li>
+      <li><strong>Ctrl / Cmd + Shift + C</strong> — Collapse all</li>
+      <li><strong>Ctrl / Cmd + Shift + O</strong> — Expand all</li>
+    </ul>
+    <div style="text-align:right; margin-top:8px;">
+      <button id="closeModal" class="btn primary">Close</button>
+    </div>
+  </div>
+</div>
+
+<!-- context menu container will be created by script.js -->
+
+<!-- toast placeholder -->
+<div id="toast" class="toast" style="display:none"></div>
+
+<script type="module" src="script.js"></script>
+</body>
+</html>
