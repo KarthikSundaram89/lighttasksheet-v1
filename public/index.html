@@ -21,7 +21,6 @@
   padding-left: 8px;
 }
 
-/* Resizable columns */
 table.sheet th {
   position: relative;
   resize: horizontal;
@@ -33,16 +32,26 @@ table.sheet th:not(.col-number) {
   border-right: 2px solid #ddd;
 }
 
-/* Text wrapping */
-table.sheet td textarea {
+table.sheet td textarea, table.sheet td select {
   white-space: pre-wrap;
   word-wrap: break-word;
   overflow-wrap: break-word;
   min-height: 20px;
   resize: vertical;
+  border: none;
+  outline: none;
+  font-family: inherit;
+  font-size: inherit;
+  width: 100%;
+  padding: 4px;
+  background: transparent !important;
 }
 
-/* Sub-row indentation with proper left alignment */
+table.sheet td textarea:focus, table.sheet td select:focus, table.sheet td input:focus {
+  background: transparent !important;
+  outline: 1px solid #007bff;
+}
+
 .sub-row .h-num {
   padding-left: 15px;
   font-size: 0.9em;
@@ -150,7 +159,8 @@ let sheet = {
   columns: [
     {name:'Timestamp',type:'date',color:PALETTE[2]}, 
     {name:'Task',type:'text',color:PALETTE[0]}, 
-    {name:'Notes',type:'text',color:PALETTE[1]}
+    {name:'Notes',type:'text',color:PALETTE[1]},
+    {name:'Status',type:'dropdown',color:PALETTE[3],options:['To be started','In Progress','Pending','Completed'],protected:true}
   ],
   rows: []
 };
@@ -179,6 +189,13 @@ function addRow(){
   console.log('Adding row...');
   const cells = new Array(sheet.columns.length).fill('');
   cells[0] = nowISO();
+  
+  // Set default status for Status column
+  const statusColIndex = sheet.columns.findIndex(col => col.name === 'Status');
+  if(statusColIndex !== -1) {
+    cells[statusColIndex] = 'To be started';
+  }
+  
   const r = { id: uid(), cells, sub:false, parent:null, collapsed:false };
   sheet.rows.push(r);
   renderTable();
@@ -188,13 +205,23 @@ function addColumn(){
   const name = prompt('Column name:', 'Column ' + (sheet.columns.length + 1));
   if(name === null) return;
   
-  const type = prompt('Column type (text/date/number):', 'text');
-  if(!['text', 'date', 'number'].includes(type)) {
+  const type = prompt('Column type (text/date/number/dropdown):', 'text');
+  if(!['text', 'date', 'number', 'dropdown'].includes(type)) {
     alert('Invalid type. Using text.');
     type = 'text';
   }
   
   const col = { name: name, type: type, color: PALETTE[sheet.columns.length % PALETTE.length] };
+  
+  if(type === 'dropdown') {
+    const options = prompt('Dropdown options (comma separated):', 'Option 1,Option 2,Option 3');
+    if(options) {
+      col.options = options.split(',').map(opt => opt.trim());
+    } else {
+      col.options = ['Option 1', 'Option 2'];
+    }
+  }
+  
   sheet.columns.push(col);
   for(const r of sheet.rows) r.cells.push('');
   renderTable();
@@ -228,6 +255,13 @@ function addSubRow(parentIndex){
   
   const cells = new Array(sheet.columns.length).fill('');
   cells[0] = nowISO();
+  
+  // Set default status for Status column
+  const statusColIndex = sheet.columns.findIndex(col => col.name === 'Status');
+  if(statusColIndex !== -1) {
+    cells[statusColIndex] = 'To be started';
+  }
+  
   const r = { id: uid(), cells, sub:true, parent:parent.id, collapsed:false };
   
   // Insert after parent and any existing sub-rows
@@ -251,6 +285,11 @@ function toggleCollapse(parentIndex){
 function deleteColumnByIndex(colIndex){
   if(sheet.columns.length <= 1) {
     alert('Cannot delete all columns');
+    return;
+  }
+  
+  if(sheet.columns[colIndex].protected) {
+    alert('This column cannot be deleted');
     return;
   }
   
@@ -386,10 +425,11 @@ function renderTable(){
   // Column headers
   sheet.columns.forEach((col, i) => {
     const th = document.createElement('th');
+    const deleteBtn = col.protected ? '' : `<span onclick="deleteColumnByIndex(${i})" style="cursor:pointer; color:#dc3545; font-weight:bold;" title="Delete column">🗑️</span>`;
     th.innerHTML = `
-      <div style="background:${col.color}; padding:4px; border-radius:3px; display:flex; justify-content:space-between; align-items:center;">
+      <div style="padding:8px; display:flex; justify-content:space-between; align-items:center;">
         <span>${col.name} (${col.type})</span>
-        <span onclick="deleteColumnByIndex(${i})" style="cursor:pointer; color:#dc3545; font-weight:bold;" title="Delete column">🗑️</span>
+        ${deleteBtn}
       </div>
     `;
     headerRow.appendChild(th);
@@ -455,6 +495,35 @@ function renderTable(){
           row.cells[ci] = inp.value ? new Date(inp.value).toISOString() : '';
         });
         td.appendChild(inp);
+      } else if(col.type === 'dropdown') {
+        const select = document.createElement('select');
+        select.style.width = '100%';
+        select.style.border = 'none';
+        select.style.outline = 'none';
+        select.style.fontFamily = 'inherit';
+        select.style.fontSize = 'inherit';
+        select.style.padding = '4px';
+        
+        // Add empty option
+        const emptyOption = document.createElement('option');
+        emptyOption.value = '';
+        emptyOption.textContent = '';
+        select.appendChild(emptyOption);
+        
+        // Add dropdown options
+        col.options.forEach(option => {
+          const opt = document.createElement('option');
+          opt.value = option;
+          opt.textContent = option;
+          select.appendChild(opt);
+        });
+        
+        select.value = cellValue || '';
+        select.addEventListener('change', () => {
+          row.cells[ci] = select.value;
+        });
+        
+        td.appendChild(select);
       } else {
         const inp = document.createElement('textarea');
         inp.value = cellValue || '';
@@ -526,6 +595,8 @@ function renderTable(){
     tdActions.style.display = 'flex';
     tdActions.style.gap = '4px';
     tdActions.style.alignItems = 'center';
+    tdActions.style.background = 'transparent';
+    tdActions.style.padding = '4px';
     
     if(!row.sub) {
       // Collapse/expand button for parent rows only
@@ -533,6 +604,7 @@ function renderTable(){
       collapseBtn.textContent = row.collapsed ? '▶' : '▼';
       collapseBtn.style.cursor = 'pointer';
       collapseBtn.style.padding = '4px';
+      collapseBtn.style.background = 'transparent';
       collapseBtn.title = row.collapsed ? 'Expand' : 'Collapse';
       collapseBtn.onclick = () => toggleCollapse(i);
       tdActions.appendChild(collapseBtn);
@@ -543,6 +615,7 @@ function renderTable(){
     addSubBtn.textContent = '➕';
     addSubBtn.style.cursor = 'pointer';
     addSubBtn.style.padding = '4px';
+    addSubBtn.style.background = 'transparent';
     addSubBtn.title = 'Add sub-row';
     addSubBtn.onclick = () => addSubRow(i);
     tdActions.appendChild(addSubBtn);
@@ -553,6 +626,7 @@ function renderTable(){
     deleteBtn.style.cursor = 'pointer';
     deleteBtn.style.padding = '4px';
     deleteBtn.style.color = '#dc3545';
+    deleteBtn.style.background = 'transparent';
     deleteBtn.title = 'Delete row';
     deleteBtn.onclick = () => deleteRow(i);
     tdActions.appendChild(deleteBtn);
@@ -669,6 +743,24 @@ async function loadSheet(username){
   const res = await apiFetch(`/sheet/${username}`);
   if(res.ok && res.json && res.json.sheet) {
     sheet = res.json.sheet;
+    
+    // Check if Status column exists, if not add it
+    const hasStatusColumn = sheet.columns.some(col => col.name === 'Status');
+    if(!hasStatusColumn) {
+      sheet.columns.push({
+        name: 'Status',
+        type: 'dropdown',
+        color: PALETTE[3],
+        options: ['To be started','In Progress','Pending','Completed'],
+        protected: true
+      });
+      
+      // Add Status cell to all existing rows
+      sheet.rows.forEach(row => {
+        row.cells.push('To be started');
+      });
+    }
+    
     renderTable();
   }
 }

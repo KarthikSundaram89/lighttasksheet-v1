@@ -4,5 +4,8 @@
   },
   "admin": {
     "password": "$2a$10$vVVpyqHMTapgbv.3ey.Gw.mBFqVA1dHhhlWLXJ9ecVZG7gtx8iBfW"
+  },
+  "Test1": {
+    "password": "$2a$10$kcRQbYI.HbPvDHA9lCRkM.5m6fW2UVjWAQOOd6ZDgg74/TFNTDUmG"
   }
 }
