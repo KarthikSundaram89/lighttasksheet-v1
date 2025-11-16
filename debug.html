@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Debug Test</title>
+</head>
+<body>
+    <button id="addRowBtn">Add Row</button>
+    <main class="sheet-card"></main>
+    
+    <script>
+        // Test if script loads without errors
+        console.log('Loading script...');
+    </script>
+    <script src="script.js"></script>
+    <script>
+        console.log('Script loaded');
+        console.log('sheet:', window.sheet);
+        console.log('addRow function:', typeof window.addRow);
+        console.log('renderTable function:', typeof window.renderTable);
+    </script>
+</body>
+</html>

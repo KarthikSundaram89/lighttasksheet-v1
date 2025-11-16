@@ -190,14 +190,29 @@ const Selection = (function(){
 /* =======================
    Rendering
    ======================= */
-const tableEl = document.createElement('table');
-tableEl.className = 'sheet';
-tableEl.id = 'sheetTable';
-const container = document.querySelector('main.sheet-card');
-container.innerHTML = '';
-container.appendChild(tableEl);
+let tableEl = null;
 
 function renderTable(){
+  console.log('renderTable called, sheet.rows.length:', sheet.rows.length);
+  if(!tableEl) {
+    const container = document.querySelector('main.sheet-card');
+    if(!container) {
+      console.error('Container main.sheet-card not found');
+      return;
+    }
+    console.log('Creating table element');
+    tableEl = document.createElement('table');
+    tableEl.className = 'sheet';
+    tableEl.id = 'sheetTable';
+    container.innerHTML = '';
+    container.appendChild(tableEl);
+  }
+  
+  if(!tableEl) {
+    console.error('Table element not created');
+    return;
+  }
+  
   migrateColumnsIfNeeded(); migrateRowsIfNeeded(); normalizeRows();
 
   tableEl.innerHTML = '';
@@ -269,8 +284,12 @@ function renderTable(){
       const col = sheet.columns[ci];
       const td = document.createElement('td');
       const value = (row.cells && (ci in row.cells)) ? row.cells[ci] : '';
-      if(ci===0){
-        td.textContent = value ? fmtLocal(value) : '';
+      if(ci===0 && col.type === 'date'){
+        // First column as timestamp - make it editable
+        const inp = document.createElement('input'); inp.type='datetime-local';
+        if(value){ try{ const d = new Date(value); const pad=(n)=>String(n).padStart(2,'0'); inp.value = d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate())+'T'+pad(d.getHours())+':'+pad(d.getMinutes()); }catch(e){} }
+        inp.addEventListener('change', ()=> row.cells[ci] = inp.value ? new Date(inp.value).toISOString() : '');
+        td.appendChild(inp);
       } else {
         if(col.type === 'date'){
           const inp = document.createElement('input'); inp.type='datetime-local';
@@ -405,11 +424,16 @@ function computeHierNumber(rowIndex){
    Row operations
    ======================= */
 function addRow(){
+  console.log('addRow called');
+  console.log('sheet.columns.length:', sheet.columns.length);
   const cells = new Array(sheet.columns.length).fill('');
   cells[0] = nowISO();
   const r = { id: uid(), cells, sub:false, parent:null, collapsed:false };
+  console.log('New row:', r);
   sheet.rows.push(r);
+  console.log('sheet.rows.length:', sheet.rows.length);
   renderTable();
+  console.log('renderTable called');
 }
 
 function addSubRow(parentIndex){
@@ -827,6 +851,43 @@ function showToast(msg='Saved ✓', duration=1800){
   t.appendChild(btn);
   t.style.display='flex';
   clearTimeout(t._t); t._t = setTimeout(()=> t.style.display='none', duration);
+}
+
+/* =======================
+   Save/Load functions
+   ======================= */
+async function saveSheetForUser(username){
+  try {
+    const res = await apiFetch(`/sheet/${username}`, {
+      method: 'POST',
+      body: JSON.stringify({ sheet })
+    });
+    if(res.ok) {
+      showToast('Saved ✓');
+    } else {
+      throw new Error('Save failed');
+    }
+  } catch(err) {
+    alert('Save error: ' + err.message);
+  }
+}
+
+async function loadSheetForUser(username){
+  try {
+    const res = await apiFetch(`/sheet/${username}`);
+    if(res.ok && res.json && res.json.sheet) {
+      sheet = res.json.sheet || { 
+        columns: [ {name:'Timestamp',type:'date',color:PALETTE[2]}, {name:'Task',type:'text',color:PALETTE[0]}, {name:'Notes',type:'text',color:PALETTE[1]} ], 
+        rows: [] 
+      };
+      migrateColumnsIfNeeded(); 
+      migrateRowsIfNeeded(); 
+      normalizeRows(); 
+      renderTable();
+    }
+  } catch(err) {
+    console.error('Load error:', err);
+  }
 }
 
 /* =======================

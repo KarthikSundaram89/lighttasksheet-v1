@@ -1,0 +1,696 @@
+// Global variables
+const API = '/api';
+const TOKEN_KEY = 'lts_token';
+const USER_KEY = 'lts_user';
+const PALETTE = ['#ffd8a8','#c6f6d5','#dbeafe','#fde68a','#fbcfe8','#e6e6fa','#d1fae5','#fce7f3'];
+
+let sheet = {
+  columns: [
+    {name:'Timestamp',type:'date',color:PALETTE[2]}, 
+    {name:'Task',type:'text',color:PALETTE[0]}, 
+    {name:'Notes',type:'text',color:PALETTE[1]}
+  ],
+  rows: []
+};
+
+let tableEl = null;
+
+// Utility functions
+function uid(){ return Date.now().toString(36) + '-' + Math.random().toString(36).slice(2,8); }
+function nowISO(){ return new Date().toISOString(); }
+function fmtLocal(iso){ if(!iso) return ''; try { return new Date(iso).toLocaleString(); } catch(e){ return iso; } }
+
+// API functions
+function apiFetch(path, opts={}){
+  opts.headers = opts.headers || {};
+  if(!opts.headers['Content-Type']) opts.headers['Content-Type']='application/json';
+  const token = localStorage.getItem(TOKEN_KEY);
+  if(token) opts.headers['Authorization'] = 'Bearer ' + token;
+  return fetch(API + path, opts).then(async res => {
+    const json = await res.json().catch(()=>null);
+    return Object.assign(res, { json });
+  });
+}
+
+// Core functions
+function addRow(){
+  console.log('Adding row...');
+  const cells = new Array(sheet.columns.length).fill('');
+  cells[0] = nowISO();
+  const r = { id: uid(), cells, sub:false, parent:null, collapsed:false };
+  sheet.rows.push(r);
+  renderTable();
+}
+
+function addColumn(){
+  const name = prompt('Column name:', 'Column ' + (sheet.columns.length + 1));
+  if(name === null) return;
+  
+  const type = prompt('Column type (text/date/number):', 'text');
+  if(!['text', 'date', 'number'].includes(type)) {
+    alert('Invalid type. Using text.');
+    type = 'text';
+  }
+  
+  const col = { name: name, type: type, color: PALETTE[sheet.columns.length % PALETTE.length] };
+  sheet.columns.push(col);
+  for(const r of sheet.rows) r.cells.push('');
+  renderTable();
+}
+
+function deleteColumn(){
+  if(sheet.columns.length <= 1) {
+    alert('Cannot delete all columns');
+    return;
+  }
+  
+  const colNames = sheet.columns.map((c, i) => `${i}: ${c.name}`).join('\n');
+  const index = prompt(`Delete which column? Enter number:\n${colNames}`);
+  const colIndex = parseInt(index);
+  
+  if(isNaN(colIndex) || colIndex < 0 || colIndex >= sheet.columns.length) {
+    alert('Invalid column number');
+    return;
+  }
+  
+  if(confirm(`Delete column "${sheet.columns[colIndex].name}"?`)) {
+    sheet.columns.splice(colIndex, 1);
+    for(const r of sheet.rows) r.cells.splice(colIndex, 1);
+    renderTable();
+  }
+}
+
+function addSubRow(parentIndex){
+  const parent = sheet.rows[parentIndex];
+  if(!parent) return;
+  
+  const cells = new Array(sheet.columns.length).fill('');
+  cells[0] = nowISO();
+  const r = { id: uid(), cells, sub:true, parent:parent.id, collapsed:false };
+  
+  // Insert after parent and any existing sub-rows
+  let insertIndex = parentIndex + 1;
+  while(insertIndex < sheet.rows.length && sheet.rows[insertIndex].sub && sheet.rows[insertIndex].parent === parent.id) {
+    insertIndex++;
+  }
+  
+  sheet.rows.splice(insertIndex, 0, r);
+  renderTable();
+}
+
+function toggleCollapse(parentIndex){
+  const parent = sheet.rows[parentIndex];
+  if(!parent || parent.sub) return;
+  
+  parent.collapsed = !parent.collapsed;
+  renderTable();
+}
+
+function deleteColumnByIndex(colIndex){
+  if(sheet.columns.length <= 1) {
+    alert('Cannot delete all columns');
+    return;
+  }
+  
+  if(confirm(`Delete column "${sheet.columns[colIndex].name}"?`)) {
+    sheet.columns.splice(colIndex, 1);
+    for(const r of sheet.rows) r.cells.splice(colIndex, 1);
+    renderTable();
+  }
+}
+
+function computeHierNumber(rowIndex) {
+  const row = sheet.rows[rowIndex];
+  if(row.sub) {
+    // Find parent number and sub-row count
+    let parentNum = 0;
+    let subNum = 0;
+    
+    // Find the parent row
+    for(let i = rowIndex - 1; i >= 0; i--) {
+      if(sheet.rows[i].id === row.parent) {
+        if(!sheet.rows[i].sub) {
+          // Parent is a main row - count main rows before it
+          for(let j = 0; j <= i; j++) {
+            if(!sheet.rows[j].sub) parentNum++;
+          }
+        } else {
+          // Parent is a sub-row - get its number
+          return computeHierNumber(i) + '.' + (countSubRowsWithParent(row.parent, rowIndex) + 1);
+        }
+        break;
+      }
+    }
+    
+    // Count sub-rows with same parent up to current row
+    subNum = countSubRowsWithParent(row.parent, rowIndex) + 1;
+    
+    return `${parentNum}.${subNum}`;
+  } else {
+    // Count parent rows up to current position
+    let parentNum = 0;
+    for(let i = 0; i <= rowIndex; i++) {
+      if(!sheet.rows[i].sub) parentNum++;
+    }
+    return parentNum.toString();
+  }
+}
+
+function getNestingLevel(row) {
+  if (!row.sub) return 0;
+  
+  // Find parent and get its nesting level + 1
+  for (let i = 0; i < sheet.rows.length; i++) {
+    if (sheet.rows[i].id === row.parent) {
+      return getNestingLevel(sheet.rows[i]) + 1;
+    }
+  }
+  return 1; // fallback
+}
+
+function countSubRowsWithParent(parentId, upToIndex) {
+  let count = 0;
+  for(let i = 0; i < upToIndex; i++) {
+    if(sheet.rows[i].sub && sheet.rows[i].parent === parentId) {
+      count++;
+    }
+  }
+  return count;
+}
+
+function deleteRow(index){
+  if(confirm('Delete this row?')) {
+    const row = sheet.rows[index];
+    
+    // If deleting a parent row, also delete its sub-rows
+    if(!row.sub) {
+      const toDelete = [index];
+      for(let i = index + 1; i < sheet.rows.length; i++) {
+        if(sheet.rows[i].sub && sheet.rows[i].parent === row.id) {
+          toDelete.push(i);
+        } else {
+          break;
+        }
+      }
+      // Delete in reverse order to maintain indices
+      toDelete.reverse().forEach(i => sheet.rows.splice(i, 1));
+    } else {
+      sheet.rows.splice(index, 1);
+    }
+    
+    renderTable();
+  }
+}
+
+function renderTable(){
+  console.log('Rendering table...');
+  
+  if(!tableEl) {
+    const container = document.querySelector('main.sheet-card');
+    if(!container) {
+      console.error('Container not found');
+      return;
+    }
+    tableEl = document.createElement('table');
+    tableEl.className = 'sheet';
+    tableEl.id = 'sheetTable';
+    container.appendChild(tableEl);
+  }
+
+  tableEl.innerHTML = '';
+  
+  // Create header
+  const thead = document.createElement('thead');
+  const headerRow = document.createElement('tr');
+  
+  // Number column
+  const thNum = document.createElement('th');
+  thNum.className = 'col-number sticky-left';
+  thNum.innerHTML = '<div style="display:flex;align-items:center;gap:8px"><strong>#</strong></div>';
+  headerRow.appendChild(thNum);
+  
+  // Column headers
+  sheet.columns.forEach((col, i) => {
+    const th = document.createElement('th');
+    th.innerHTML = `
+      <div style="background:${col.color}; padding:4px; border-radius:3px; display:flex; justify-content:space-between; align-items:center;">
+        <span>${col.name} (${col.type})</span>
+        <span onclick="deleteColumnByIndex(${i})" style="cursor:pointer; color:#dc3545; font-weight:bold;" title="Delete column">🗑️</span>
+      </div>
+    `;
+    headerRow.appendChild(th);
+  });
+  
+  // Actions column
+  const thActions = document.createElement('th');
+  thActions.textContent = 'Actions';
+  headerRow.appendChild(thActions);
+  
+  thead.appendChild(headerRow);
+  tableEl.appendChild(thead);
+  
+  // Create body
+  const tbody = document.createElement('tbody');
+  
+  // Build collapsed map
+  const collapsed = {};
+  sheet.rows.forEach(r => {
+    if(!r.sub && r.id) collapsed[r.id] = !!r.collapsed;
+  });
+  
+  sheet.rows.forEach((row, i) => {
+    // Skip sub-rows if parent is collapsed
+    if(row.sub && row.parent && collapsed[row.parent]) return;
+    
+    const tr = document.createElement('tr');
+    if(row.sub) {
+      tr.classList.add('sub-row');
+      tr.style.backgroundColor = '#f8f9fa';
+      
+      // Add nesting level class for indentation
+      const nestLevel = getNestingLevel(row);
+      if (nestLevel >= 2) tr.classList.add('sub-row-level-2');
+      if (nestLevel >= 3) tr.classList.add('sub-row-level-3');
+    }
+    
+    // Row number with hierarchy
+    const tdNum = document.createElement('td');
+    tdNum.className = 'col-number sticky-left';
+    const numDiv = document.createElement('div');
+    numDiv.className = 'num';
+    numDiv.innerHTML = '<span class="h-num">' + computeHierNumber(i) + '</span>';
+    tdNum.appendChild(numDiv);
+    tr.appendChild(tdNum);
+    
+    // Row cells
+    row.cells.forEach((cellValue, ci) => {
+      const td = document.createElement('td');
+      const col = sheet.columns[ci];
+      
+      if(col.type === 'date') {
+        const inp = document.createElement('input');
+        inp.type = 'datetime-local';
+        if(cellValue) {
+          try {
+            const d = new Date(cellValue);
+            const pad = n => String(n).padStart(2,'0');
+            inp.value = d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate())+'T'+pad(d.getHours())+':'+pad(d.getMinutes());
+          } catch(e) {}
+        }
+        inp.addEventListener('change', () => {
+          row.cells[ci] = inp.value ? new Date(inp.value).toISOString() : '';
+        });
+        td.appendChild(inp);
+      } else {
+        const inp = document.createElement('textarea');
+        inp.value = cellValue || '';
+        inp.style.width = '100%';
+        inp.style.minHeight = '20px';
+        inp.style.resize = 'vertical';
+        inp.style.border = 'none';
+        inp.style.outline = 'none';
+        inp.style.fontFamily = 'inherit';
+        inp.style.fontSize = 'inherit';
+        
+        // Add visual indicator for sub-row tasks
+        if(row.sub && ci === 1) {
+          inp.style.paddingLeft = '20px';
+          inp.placeholder = 'Sub-task...';
+        }
+        
+        inp.addEventListener('input', () => {
+          row.cells[ci] = inp.value;
+          // Auto-resize textarea
+          inp.style.height = 'auto';
+          inp.style.height = inp.scrollHeight + 'px';
+        });
+        
+        // Initial resize
+        setTimeout(() => {
+          inp.style.height = 'auto';
+          inp.style.height = inp.scrollHeight + 'px';
+        }, 0);
+        
+        td.appendChild(inp);
+      }
+      
+      tr.appendChild(td);
+    });
+    
+    // Actions
+    const tdActions = document.createElement('td');
+    tdActions.style.display = 'flex';
+    tdActions.style.gap = '4px';
+    tdActions.style.alignItems = 'center';
+    
+    if(!row.sub) {
+      // Collapse/expand button for parent rows only
+      const collapseBtn = document.createElement('span');
+      collapseBtn.textContent = row.collapsed ? '▶' : '▼';
+      collapseBtn.style.cursor = 'pointer';
+      collapseBtn.style.padding = '4px';
+      collapseBtn.title = row.collapsed ? 'Expand' : 'Collapse';
+      collapseBtn.onclick = () => toggleCollapse(i);
+      tdActions.appendChild(collapseBtn);
+    }
+    
+    // Add sub-row button for all rows (allows nesting)
+    const addSubBtn = document.createElement('span');
+    addSubBtn.textContent = '➕';
+    addSubBtn.style.cursor = 'pointer';
+    addSubBtn.style.padding = '4px';
+    addSubBtn.title = 'Add sub-row';
+    addSubBtn.onclick = () => addSubRow(i);
+    tdActions.appendChild(addSubBtn);
+    
+    // Delete button
+    const deleteBtn = document.createElement('span');
+    deleteBtn.textContent = '🗑️';
+    deleteBtn.style.cursor = 'pointer';
+    deleteBtn.style.padding = '4px';
+    deleteBtn.style.color = '#dc3545';
+    deleteBtn.title = 'Delete row';
+    deleteBtn.onclick = () => deleteRow(i);
+    tdActions.appendChild(deleteBtn);
+    
+    tr.appendChild(tdActions);
+    tbody.appendChild(tr);
+  });
+  
+  tableEl.appendChild(tbody);
+  console.log('Table rendered with', sheet.rows.length, 'rows');
+}
+
+// Auth functions
+async function doLogin(u,p){
+  const res = await apiFetch('/login', { 
+    method:'POST', 
+    body: JSON.stringify({ username: u, password: p }) 
+  });
+  if(!res.ok) throw new Error('Login failed');
+  localStorage.setItem(TOKEN_KEY, res.json.token);
+  localStorage.setItem(USER_KEY, res.json.username);
+  await loadSheet(res.json.username);
+}
+
+async function doRegister(u,p){
+  const res = await apiFetch('/register', { 
+    method:'POST', 
+    body: JSON.stringify({ username: u, password: p }) 
+  });
+  if(!res.ok) throw new Error('Register failed');
+  alert('User created — please login.');
+}
+
+async function resetPassword(username, newPassword){
+  const res = await apiFetch('/reset-password', {
+    method: 'POST',
+    body: JSON.stringify({ username, newPassword })
+  });
+  if(!res.ok) throw new Error('Password reset failed');
+  return res.json;
+}
+
+async function getAllUsers(){
+  const res = await apiFetch('/admin/users');
+  if(!res.ok) throw new Error('Failed to fetch users');
+  return res.json.users;
+}
+
+async function deleteUser(username){
+  const res = await apiFetch('/admin/delete-user', {
+    method: 'POST',
+    body: JSON.stringify({ username })
+  });
+  if(!res.ok) throw new Error('Failed to delete user');
+  return res.json;
+}
+
+function doLogout(){
+  localStorage.removeItem(TOKEN_KEY);
+  localStorage.removeItem(USER_KEY);
+  sheet.rows = [];
+  renderTable();
+}
+
+function showToast(message = 'Saved ✓', duration = 2000) {
+  // Remove existing toast
+  const existingToast = document.getElementById('toast');
+  if(existingToast) existingToast.remove();
+  
+  // Create new toast
+  const toast = document.createElement('div');
+  toast.id = 'toast';
+  toast.style.cssText = `
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    background: #28a745;
+    color: white;
+    padding: 12px 20px;
+    border-radius: 6px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    z-index: 1000;
+    font-family: Arial, sans-serif;
+    font-size: 14px;
+  `;
+  toast.textContent = message;
+  document.body.appendChild(toast);
+  
+  // Auto remove after duration
+  setTimeout(() => {
+    if(toast.parentNode) toast.remove();
+  }, duration);
+}
+
+async function saveSheet(){
+  const user = localStorage.getItem(USER_KEY);
+  if(!user) return alert('Login first');
+  try {
+    const res = await apiFetch(`/sheet/${user}`, {
+      method: 'POST',
+      body: JSON.stringify({ sheet })
+    });
+    if(res.ok) {
+      showToast('Saved ✓');
+    } else {
+      throw new Error('Save failed');
+    }
+  } catch(err) {
+    alert('Save error: ' + err.message);
+  }
+}
+
+async function loadSheet(username){
+  const res = await apiFetch(`/sheet/${username}`);
+  if(res.ok && res.json && res.json.sheet) {
+    sheet = res.json.sheet;
+    renderTable();
+  }
+}
+
+function exportJSON(){
+  const dataStr = JSON.stringify(sheet, null, 2);
+  const dataBlob = new Blob([dataStr], {type: 'application/json'});
+  const url = URL.createObjectURL(dataBlob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = 'sheet.json';
+  link.click();
+}
+
+function exportExcel(){
+  // Simple CSV export (Excel can open CSV files)
+  let csv = sheet.columns.map(c => c.name).join(',') + '\n';
+  
+  sheet.rows.forEach(row => {
+    const csvRow = row.cells.map(cell => {
+      if(typeof cell === 'string' && cell.includes(',')) {
+        return `"${cell.replace(/"/g, '""')}"`;
+      }
+      return cell || '';
+    }).join(',');
+    csv += csvRow + '\n';
+  });
+  
+  const blob = new Blob([csv], { type: 'text/csv' });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = 'sheet.csv';
+  link.click();
+}
+
+function importJSON(){
+  const fileInput = document.getElementById('importFile');
+  const file = fileInput.files[0];
+  if(!file) return;
+  
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    try {
+      const imported = JSON.parse(e.target.result);
+      if(!imported.columns || !imported.rows) {
+        throw new Error('Invalid file format');
+      }
+      sheet = imported;
+      renderTable();
+      alert('Import successful!');
+    } catch(err) {
+      alert('Import error: ' + err.message);
+    }
+  };
+  reader.readAsText(file);
+}
+
+// Initialize
+document.addEventListener('DOMContentLoaded', function(){
+  console.log('Initializing...');
+  
+  // Event listeners
+  document.getElementById('addRowBtn').onclick = addRow;
+  document.getElementById('addColBtn').onclick = addColumn;
+  document.getElementById('saveBtn').onclick = saveSheet;
+  document.getElementById('exportBtn').onclick = exportJSON;
+  document.getElementById('exportXlsBtn').onclick = exportExcel;
+  document.getElementById('importBtn').onclick = () => document.getElementById('importFile').click();
+  
+  document.getElementById('collapseAllBtn').onclick = () => {
+    sheet.rows.forEach(r => { if(!r.sub) r.collapsed = true; });
+    renderTable();
+  };
+  
+  document.getElementById('expandAllBtn').onclick = () => {
+    sheet.rows.forEach(r => { if(!r.sub) r.collapsed = false; });
+    renderTable();
+  };
+  
+  document.getElementById('loginBtn').onclick = async () => {
+    const u = document.getElementById('username').value.trim();
+    const p = document.getElementById('password').value;
+    try {
+      await doLogin(u,p);
+      // Hide login fields
+      document.getElementById('username').style.display = 'none';
+      document.getElementById('password').style.display = 'none';
+      document.getElementById('loginBtn').style.display = 'none';
+      document.getElementById('registerBtn').style.display = 'none';
+      document.getElementById('logoutBtn').style.display = '';
+      document.getElementById('userTag').textContent = u;
+      document.getElementById('userTag').style.display = 'inline-block';
+      // Show admin button for admin user
+      if(u === 'admin') {
+        document.getElementById('adminBtn').style.display = '';
+      }
+    } catch(err) {
+      alert(err.message);
+    }
+  };
+  
+  document.getElementById('registerBtn').onclick = async () => {
+    const u = document.getElementById('username').value.trim();
+    const p = document.getElementById('password').value;
+    try {
+      await doRegister(u,p);
+    } catch(err) {
+      alert(err.message);
+    }
+  };
+  
+  document.getElementById('logoutBtn').onclick = () => {
+    doLogout();
+    // Show login fields
+    document.getElementById('username').style.display = '';
+    document.getElementById('password').style.display = '';
+    document.getElementById('loginBtn').style.display = '';
+    document.getElementById('registerBtn').style.display = '';
+    document.getElementById('logoutBtn').style.display = 'none';
+    document.getElementById('userTag').style.display = 'none';
+    document.getElementById('adminBtn').style.display = 'none';
+  };
+  
+  // Help modal
+  document.getElementById('helpBtn').onclick = () => {
+    document.getElementById('modal').style.display = 'flex';
+  };
+  document.getElementById('closeModal').onclick = () => {
+    document.getElementById('modal').style.display = 'none';
+  };
+  
+  // Reset password modal
+  document.getElementById('resetPasswordBtn').onclick = () => {
+    document.getElementById('resetModal').style.display = 'flex';
+  };
+  document.getElementById('cancelReset').onclick = () => {
+    document.getElementById('resetModal').style.display = 'none';
+  };
+  document.getElementById('confirmReset').onclick = async () => {
+    const username = document.getElementById('resetUsername').value.trim();
+    const password = document.getElementById('resetPassword').value;
+    if(!username || !password) {
+      alert('Please fill in both fields');
+      return;
+    }
+    try {
+      await resetPassword(username, password);
+      alert('Password reset successful!');
+      document.getElementById('resetModal').style.display = 'none';
+      document.getElementById('resetUsername').value = '';
+      document.getElementById('resetPassword').value = '';
+    } catch(err) {
+      alert('Reset failed: ' + err.message);
+    }
+  };
+  
+  // Admin modal
+  document.getElementById('adminBtn').onclick = async () => {
+    document.getElementById('adminModal').style.display = 'flex';
+    await loadUsersList();
+  };
+  document.getElementById('closeAdmin').onclick = () => {
+    document.getElementById('adminModal').style.display = 'none';
+  };
+  document.getElementById('refreshUsers').onclick = loadUsersList;
+  
+  async function loadUsersList() {
+    try {
+      const users = await getAllUsers();
+      const usersList = document.getElementById('usersList');
+      usersList.innerHTML = '<h4>Users:</h4>';
+      users.forEach(user => {
+        const userDiv = document.createElement('div');
+        userDiv.style.cssText = 'display:flex;justify-content:space-between;align-items:center;padding:8px;border:1px solid #ddd;margin:4px 0;border-radius:4px;';
+        userDiv.innerHTML = `
+          <span>${user}</span>
+          <button onclick="deleteUserConfirm('${user}')" class="btn ghost" style="color:#dc3545;">Delete</button>
+        `;
+        usersList.appendChild(userDiv);
+      });
+    } catch(err) {
+      alert('Failed to load users: ' + err.message);
+    }
+  }
+  
+  window.deleteUserConfirm = async function(username) {
+    if(username === 'admin') {
+      alert('Cannot delete admin user');
+      return;
+    }
+    if(confirm(`Delete user "${username}"? This will also delete their data.`)) {
+      try {
+        await deleteUser(username);
+        alert('User deleted successfully');
+        await loadUsersList();
+      } catch(err) {
+        alert('Delete failed: ' + err.message);
+      }
+    }
+  };
+  
+  // Initial render
+  if(sheet.rows.length === 0) {
+    addRow();
+  } else {
+    renderTable();
+  }
+});

@@ -1,1 +1,8 @@
-{}
+{
+  "Test": {
+    "password": "$2a$10$4MT7syOdkJAbQP3EFnGis.CYiTAbMVxyadlC7Z.AbJx0a8xVTZZ1O"
+  },
+  "admin": {
+    "password": "$2a$10$vVVpyqHMTapgbv.3ey.Gw.mBFqVA1dHhhlWLXJ9ecVZG7gtx8iBfW"
+  }
+}

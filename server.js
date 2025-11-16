@@ -23,7 +23,14 @@ const DATA_DIR = path.join(__dirname, 'data');
 if(!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR);
 
 const USERS_FILE = path.join(DATA_DIR, 'users.json');
-if(!fs.existsSync(USERS_FILE)) fs.writeFileSync(USERS_FILE, JSON.stringify({}));
+if(!fs.existsSync(USERS_FILE)) {
+  // Create default admin user
+  const defaultUsers = {
+    admin: { password: bcrypt.hashSync('admin123', 10) }
+  };
+  fs.writeFileSync(USERS_FILE, JSON.stringify(defaultUsers, null, 2));
+  console.log('Created default admin user (username: admin, password: admin123)');
+}
 
 const SECRET = "lighttasksheet-secret-key-change-this";
 
@@ -68,6 +75,45 @@ app.post('/api/login', (req,res)=>{
   if(!bcrypt.compareSync(password, u.password)) return res.status(401).json({error:"Invalid login"});
   const token = jwt.sign({ username }, SECRET, { expiresIn:'7d' });
   return res.json({ token, username });
+});
+
+app.post('/api/reset-password', (req,res)=>{
+  const { username, newPassword } = req.body;
+  if(!username || !newPassword) return res.status(400).json({error:"Missing fields"});
+  const users = loadUsers();
+  if(!users[username]) return res.status(404).json({error:"User not found"});
+  const hash = bcrypt.hashSync(newPassword, 10);
+  users[username].password = hash;
+  saveUsers(users);
+  return res.json({ success: true });
+});
+
+app.get('/api/admin/users', auth, (req,res)=>{
+  if(req.user !== 'admin') return res.status(403).json({error:"Admin access required"});
+  const users = loadUsers();
+  const usernames = Object.keys(users);
+  return res.json({ users: usernames });
+});
+
+app.post('/api/admin/delete-user', auth, (req,res)=>{
+  if(req.user !== 'admin') return res.status(403).json({error:"Admin access required"});
+  const { username } = req.body;
+  if(!username) return res.status(400).json({error:"Missing username"});
+  if(username === 'admin') return res.status(400).json({error:"Cannot delete admin"});
+  
+  const users = loadUsers();
+  if(!users[username]) return res.status(404).json({error:"User not found"});
+  
+  delete users[username];
+  saveUsers(users);
+  
+  // Also delete user's data file
+  const userFile = path.join(DATA_DIR, username + '.json');
+  if(fs.existsSync(userFile)) {
+    fs.unlinkSync(userFile);
+  }
+  
+  return res.json({ success: true });
 });
 
 app.get('/api/sheet/:username', auth, (req,res)=>{

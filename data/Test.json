@@ -1,0 +1,96 @@
+{
+  "columns": [
+    {
+      "name": "Timestamp",
+      "type": "date",
+      "color": "#dbeafe"
+    },
+    {
+      "name": "Task",
+      "type": "text",
+      "color": "#ffd8a8"
+    }
+  ],
+  "rows": [
+    {
+      "id": "mi1bogvz-4cl5n3",
+      "cells": [
+        "2025-11-16T06:16:15.743Z",
+        "A"
+      ],
+      "sub": false,
+      "parent": null,
+      "collapsed": false
+    },
+    {
+      "id": "mi1hwytk-n6ydo1",
+      "cells": [
+        "2025-11-16T09:10:49.928Z",
+        ""
+      ],
+      "sub": true,
+      "parent": "mi1bogvz-4cl5n3",
+      "collapsed": false
+    },
+    {
+      "id": "mi1hwzyd-b6olfv",
+      "cells": [
+        "2025-11-16T09:10:51.396Z",
+        ""
+      ],
+      "sub": true,
+      "parent": "mi1hwytk-n6ydo1",
+      "collapsed": false
+    },
+    {
+      "id": "mi1hx12j-ktr18h",
+      "cells": [
+        "2025-11-16T09:10:52.843Z",
+        ""
+      ],
+      "sub": true,
+      "parent": "mi1hwzyd-b6olfv",
+      "collapsed": false
+    },
+    {
+      "id": "mi1hxh1j-ebuahz",
+      "cells": [
+        "2025-11-16T09:11:13.542Z",
+        ""
+      ],
+      "sub": false,
+      "parent": null,
+      "collapsed": false
+    },
+    {
+      "id": "mi1hxi2q-b97kkc",
+      "cells": [
+        "2025-11-16T09:11:14.882Z",
+        ""
+      ],
+      "sub": true,
+      "parent": "mi1hxh1j-ebuahz",
+      "collapsed": false
+    },
+    {
+      "id": "mi1hxikm-j1iymw",
+      "cells": [
+        "2025-11-16T09:11:15.526Z",
+        ""
+      ],
+      "sub": true,
+      "parent": "mi1hxh1j-ebuahz",
+      "collapsed": false
+    },
+    {
+      "id": "mi1hxlw3-ztyecf",
+      "cells": [
+        "2025-11-16T09:11:19.827Z",
+        ""
+      ],
+      "sub": true,
+      "parent": "mi1hxikm-j1iymw",
+      "collapsed": false
+    }
+  ]
+}

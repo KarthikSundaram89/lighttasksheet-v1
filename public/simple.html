@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Simple Task Tracker</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .header { display: flex; gap: 10px; margin-bottom: 20px; align-items: center; }
+        .btn { padding: 8px 16px; border: 1px solid #ccc; background: #f5f5f5; cursor: pointer; border-radius: 4px; }
+        .btn:hover { background: #e5e5e5; }
+        .btn.primary { background: #007bff; color: white; border-color: #007bff; }
+        table { width: 100%; border-collapse: collapse; }
+        th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+        th { background: #f5f5f5; }
+        input, textarea { width: 100%; border: none; padding: 4px; }
+        .delete-btn { background: #dc3545; color: white; border: none; padding: 4px 8px; cursor: pointer; border-radius: 3px; }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>Task Tracker</h1>
+        <button class="btn" onclick="addTask()">+ Add Task</button>
+        <button class="btn primary" onclick="saveTasks()">Save</button>
+        <button class="btn" onclick="exportTasks()">Export JSON</button>
+    </div>
+
+    <table id="taskTable">
+        <thead>
+            <tr>
+                <th>ID</th>
+                <th>Task</th>
+                <th>Status</th>
+                <th>Priority</th>
+                <th>Notes</th>
+                <th>Created</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody id="taskBody">
+        </tbody>
+    </table>
+
+    <script>
+        let tasks = [];
+        let nextId = 1;
+
+        function addTask() {
+            const task = {
+                id: nextId++,
+                task: '',
+                status: 'Todo',
+                priority: 'Medium',
+                notes: '',
+                created: new Date().toLocaleString()
+            };
+            tasks.push(task);
+            renderTasks();
+        }
+
+        function deleteTask(id) {
+            tasks = tasks.filter(t => t.id !== id);
+            renderTasks();
+        }
+
+        function renderTasks() {
+            const tbody = document.getElementById('taskBody');
+            tbody.innerHTML = '';
+            
+            tasks.forEach(task => {
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td>${task.id}</td>
+                    <td><input type="text" value="${task.task}" onchange="updateTask(${task.id}, 'task', this.value)"></td>
+                    <td>
+                        <select onchange="updateTask(${task.id}, 'status', this.value)">
+                            <option ${task.status === 'Todo' ? 'selected' : ''}>Todo</option>
+                            <option ${task.status === 'In Progress' ? 'selected' : ''}>In Progress</option>
+                            <option ${task.status === 'Done' ? 'selected' : ''}>Done</option>
+                        </select>
+                    </td>
+                    <td>
+                        <select onchange="updateTask(${task.id}, 'priority', this.value)">
+                            <option ${task.priority === 'Low' ? 'selected' : ''}>Low</option>
+                            <option ${task.priority === 'Medium' ? 'selected' : ''}>Medium</option>
+                            <option ${task.priority === 'High' ? 'selected' : ''}>High</option>
+                        </select>
+                    </td>
+                    <td><textarea onchange="updateTask(${task.id}, 'notes', this.value)">${task.notes}</textarea></td>
+                    <td>${task.created}</td>
+                    <td><button class="delete-btn" onclick="deleteTask(${task.id})">Delete</button></td>
+                `;
+                tbody.appendChild(row);
+            });
+        }
+
+        function updateTask(id, field, value) {
+            const task = tasks.find(t => t.id === id);
+            if (task) {
+                task[field] = value;
+            }
+        }
+
+        function saveTasks() {
+            localStorage.setItem('tasks', JSON.stringify(tasks));
+            alert('Tasks saved!');
+        }
+
+        function loadTasks() {
+            const saved = localStorage.getItem('tasks');
+            if (saved) {
+                tasks = JSON.parse(saved);
+                nextId = Math.max(...tasks.map(t => t.id), 0) + 1;
+                renderTasks();
+            }
+        }
+
+        function exportTasks() {
+            const dataStr = JSON.stringify(tasks, null, 2);
+            const dataBlob = new Blob([dataStr], {type: 'application/json'});
+            const url = URL.createObjectURL(dataBlob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = 'tasks.json';
+            link.click();
+        }
+
+        // Load tasks on page load
+        loadTasks();
+        
+        // Add initial task if none exist
+        if (tasks.length === 0) {
+            addTask();
+        }
+    </script>
+</body>
+</html>
